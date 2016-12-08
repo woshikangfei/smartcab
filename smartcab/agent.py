@@ -3,6 +3,7 @@ import math
 from environment import Agent, Environment
 from planner import RoutePlanner
 from simulator import Simulator
+from random import randint
 
 class LearningAgent(Agent):
     """ An agent that learns to drive in the Smartcab world.
@@ -19,6 +20,7 @@ class LearningAgent(Agent):
         self.epsilon = epsilon   # Random exploration factor
         self.alpha = alpha       # Learning factor
 
+        self.currentTrial=1
         ###########
         ## TO DO ##
         ###########
@@ -40,6 +42,15 @@ class LearningAgent(Agent):
         # Update additional class parameters as needed
         # If 'testing' is True, set epsilon and alpha to 0
 
+        self.epsilon = math.sin(math.pi/2 + (math.pi/2)*self.currentTrial/160)
+        #self.alpha = 0.5 + 0.5*(1-self.epsilon)
+
+        self.currentTrial = self.currentTrial + 1
+
+        if testing == True:
+            self.epsilon = 0
+            self.alpha = 0
+
         return None
 
     def build_state(self):
@@ -60,8 +71,14 @@ class LearningAgent(Agent):
         #   If it is not, create a dictionary in the Q-table for the current 'state'
         #   For each action, set the Q-value for the state-action pair to 0
         
-        state = None
+        #state = None
+        state = (waypoint, inputs['light'],inputs['oncoming'])
 
+
+        if self.learning == True:
+             checkState = self.Q.get(state)
+             if checkState is None:
+                self.createQ(state)
         return state
 
 
@@ -74,7 +91,7 @@ class LearningAgent(Agent):
         ###########
         # Calculate the maximum Q-value of all actions for a given state
 
-        maxQ = None
+        maxQ = max(self.Q[state].values())
 
         return maxQ 
 
@@ -88,7 +105,9 @@ class LearningAgent(Agent):
         # When learning, check if the 'state' is not in the Q-table
         # If it is not, create a new dictionary for that state
         #   Then, for each action available, set the initial Q-value to 0.0
-
+        checkState = self.Q.get(state)
+        if checkState is None: #should only be called by buildState, but checking again to be safe
+            self.Q[state] = {None:0, 'forward':0, 'left':0, 'right':0}
         return
 
 
@@ -101,13 +120,31 @@ class LearningAgent(Agent):
         self.next_waypoint = self.planner.next_waypoint()
         action = None
 
+
         ########### 
         ## TO DO ##
         ###########
         # When not learning, choose a random action
         # When learning, choose a random action with 'epsilon' probability
         #   Otherwise, choose an action with the highest Q-value for the current state
- 
+        if self.learning == False:
+            rndActNum=randint(0,3)
+            action = self.valid_actions[rndActNum]
+        else:
+            if random.random()<self.epsilon:
+                rndActNum=randint(0,3)
+                action = self.valid_actions[rndActNum]
+            else:
+                maxQ=self.get_maxQ(state)
+                maxQActions =  [];
+                actions = self.Q[state]
+                for actKey, actVal in actions.iteritems():
+                    if actVal == maxQ:
+                        maxQActions.append(actKey)
+                rndActNum = randint(0,len(maxQActions)-1)
+                action = maxQActions[rndActNum]
+                #print("Tie",maxQActions, rndActNum, action)
+
         return action
 
 
@@ -121,7 +158,19 @@ class LearningAgent(Agent):
         ###########
         # When learning, implement the value iteration update rule
         #   Use only the learning rate 'alpha' (do not use the discount factor 'gamma')
+        if self.learning == True:
+            oldValue = self.Q[state][action]
+            alpha = self.alpha
+            newValue = oldValue + alpha*(reward-oldValue)
 
+            #nextState = self.build_state()
+            #newValue = oldValue + alpha*(reward+self.get_maxQ(nextState)-oldValue)
+
+            #newValue = oldValue + alpha*(reward+gamma*self.get_maxQ(state)-oldValue) #could be interesting to check out, but I would need maxQ of next state, somehow.
+
+
+            stateDict=self.Q[state]
+            stateDict[action]=newValue
         return
 
 
@@ -157,13 +206,13 @@ def run():
     #   learning   - set to True to force the driving agent to use Q-learning
     #    * epsilon - continuous value for the exploration factor, default is 1
     #    * alpha   - continuous value for the learning rate, default is 0.5
-    agent = env.create_agent(LearningAgent)
+    agent = env.create_agent(LearningAgent,learning=True)
     
     ##############
     # Follow the driving agent
     # Flags:
     #   enforce_deadline - set to True to enforce a deadline metric
-    env.set_primary_agent(agent)
+    env.set_primary_agent(agent,enforce_deadline=True)
 
     ##############
     # Create the simulation
@@ -172,14 +221,14 @@ def run():
     #   display      - set to False to disable the GUI if PyGame is enabled
     #   log_metrics  - set to True to log trial and simulation results to /logs
     #   optimized    - set to True to change the default log file name
-    sim = Simulator(env)
+    sim = Simulator(env,update_delay=0.01, log_metrics=True,display=False)
     
     ##############
     # Run the simulator
     # Flags:
     #   tolerance  - epsilon tolerance before beginning testing, default is 0.05 
     #   n_test     - discrete number of testing trials to perform, default is 0
-    sim.run()
+    sim.run( n_test=10)
 
 
 if __name__ == '__main__':
