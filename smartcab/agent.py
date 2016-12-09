@@ -206,7 +206,7 @@ def run():
     #   learning   - set to True to force the driving agent to use Q-learning
     #    * epsilon - continuous value for the exploration factor, default is 1
     #    * alpha   - continuous value for the learning rate, default is 0.5
-    agent = env.create_agent(LearningAgent,learning=True,epsilon =1,alpha=0.7)
+    agent = env.create_agent(LearningAgent,learning=True,epsilon =1,alpha=0.5)
     
     ##############
     # Follow the driving agent
@@ -221,7 +221,7 @@ def run():
     #   display      - set to False to disable the GUI if PyGame is enabled
     #   log_metrics  - set to True to log trial and simulation results to /logs
     #   optimized    - set to True to change the default log file name
-    sim = Simulator(env,update_delay=0.01, log_metrics=True,display=False,optimized=True)
+    sim = Simulator(env,update_delay=0.01, log_metrics=True,display=False)
     
     ##############
     # Run the simulator
